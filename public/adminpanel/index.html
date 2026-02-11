@@ -426,8 +426,9 @@ tr:hover td{background:#fafaf9}
       📌 Данные хранятся в localStorage — они привязаны к этому браузеру<br>
       📌 Используйте Экспорт/Импорт для переноса данных между устройствами<br>
       📌 Для работы AI нужен API ключ от <a href="https://openrouter.ai" target="_blank" style="color:#92400e;text-decoration:underline">OpenRouter</a><br>
-      📌 Настройки AI из админ-панели НЕ влияют на код сайта — они для справки<br>
-      📌 Чтобы AI работал на сайте, измените AI_CONFIG в файле index.html
+      📌 <strong>Все изменения (товары, цены, остатки) автоматически отображаются на основном сайте</strong><br>
+      📌 Настройки AI из админ-панели автоматически подхватываются чат-ботом на сайте<br>
+      📌 Если открыты обе вкладки — изменения применяются в реальном времени
     </p>
   </div>
 </div>
@@ -654,65 +655,80 @@ function formatDate(d) {
 }
 function formatMoney(n) { return Number(n).toLocaleString('ru-RU') + ' ₽'; }
 
-// Initialize with demo data if empty
+// Initialize with demo data if empty — использует те же данные, что и основной сайт
 function initDemoData() {
-  if (getData('initialized', false)) return;
-
-  var products = [
-    { id:genId(), name:'Эспрессо', cat:'Кофе', price:150, stock:120, desc:'Классический крепкий кофе', emoji:'☕' },
-    { id:genId(), name:'Капучино', cat:'Кофе', price:250, stock:85, desc:'Эспрессо с молочной пенкой', emoji:'🥛' },
-    { id:genId(), name:'Латте', cat:'Кофе', price:280, stock:72, desc:'Мягкий кофе с молоком', emoji:'🍦' },
-    { id:genId(), name:'Раф кофе', cat:'Кофе', price:320, stock:45, desc:'Кофе со сливками', emoji:'🧁' },
-    { id:genId(), name:'Мокко', cat:'Кофе', price:300, stock:38, desc:'Кофе с шоколадом', emoji:'🍫' },
-    { id:genId(), name:'Айс-кофе', cat:'Кофе', price:270, stock:60, desc:'Холодный кофе', emoji:'🧊' },
-    { id:genId(), name:'Флэт Уайт', cat:'Кофе', price:290, stock:52, desc:'Двойной эспрессо с молоком', emoji:'✨' },
-    { id:genId(), name:'Зелёный чай', cat:'Чай', price:180, stock:90, desc:'Японская сенча', emoji:'🍵' },
-    { id:genId(), name:'Матча-латте', cat:'Чай', price:300, stock:35, desc:'Чай матча с молоком', emoji:'🍃' },
-    { id:genId(), name:'Иван-чай', cat:'Чай', price:200, stock:55, desc:'С ягодами', emoji:'🌿' },
-    { id:genId(), name:'Чизкейк', cat:'Десерты', price:350, stock:18, desc:'Нью-Йоркский', emoji:'🍰' },
-    { id:genId(), name:'Тирамису', cat:'Десерты', price:380, stock:12, desc:'Итальянский', emoji:'🍮' },
-    { id:genId(), name:'Круассан', cat:'Десерты', price:200, stock:30, desc:'Маслянистый', emoji:'🥐' },
-    { id:genId(), name:'Маффин', cat:'Десерты', price:220, stock:25, desc:'Шоколадный', emoji:'🧁' },
-    { id:genId(), name:'Авокадо-тост', cat:'Завтраки', price:420, stock:8, desc:'С яйцом пашот', emoji:'🥑' },
-    { id:genId(), name:'Сырники', cat:'Завтраки', price:350, stock:15, desc:'Со сметаной', emoji:'🥞' },
-    { id:genId(), name:'Молоко 3.2%', cat:'Ингредиенты', price:80, stock:200, desc:'Литровая упаковка', emoji:'🥛' },
-    { id:genId(), name:'Овсяное молоко', cat:'Ингредиенты', price:180, stock:50, desc:'Растительное', emoji:'🌾' },
-    { id:genId(), name:'Кофе зёрна 1кг', cat:'Ингредиенты', price:1200, stock:5, desc:'Арабика Эфиопия', emoji:'☕' },
-    { id:genId(), name:'Стакан 300мл', cat:'Упаковка', price:8, stock:500, desc:'Бумажный', emoji:'🥤' },
-  ];
-  setData('products', products);
-
-  var sales = [];
-  var daysAgo = [0,0,0,1,1,2,2,3,4,5,6,7,8,9,10];
-  for (var i = 0; i < 15; i++) {
-    var p = products[Math.floor(Math.random() * 10)];
-    var qty = Math.floor(Math.random() * 4) + 1;
-    var d = new Date(); d.setDate(d.getDate() - daysAgo[i]);
-    sales.push({
-      id: genId(),
-      product: p.name,
-      qty: qty,
-      price: p.price,
-      total: p.price * qty,
-      payment: ['Наличные','Карта','Apple/Google Pay','СБП'][Math.floor(Math.random()*4)],
-      date: d.toISOString().split('T')[0]
-    });
+  // Если товары уже есть (созданы основным сайтом) — не перезаписываем
+  var existingProducts = getData('products', null);
+  
+  if (!existingProducts || existingProducts.length === 0) {
+    // Создаём товары для витрины + внутренние товары
+    var products = [
+      { id:genId(), name:'Эспрессо', cat:'Кофе', price:150, stock:120, desc:'Классический крепкий кофе', emoji:'☕', hit:false },
+      { id:genId(), name:'Капучино', cat:'Кофе', price:250, stock:85, desc:'Эспрессо с нежной молочной пенкой', emoji:'🥛', hit:true },
+      { id:genId(), name:'Латте', cat:'Кофе', price:280, stock:72, desc:'Мягкий кофе с большим количеством молока', emoji:'🍦', hit:true },
+      { id:genId(), name:'Флэт Уайт', cat:'Кофе', price:290, stock:52, desc:'Двойной эспрессо с бархатным молоком', emoji:'✨', hit:false },
+      { id:genId(), name:'Мокко', cat:'Кофе', price:300, stock:38, desc:'Кофе с шоколадом и взбитыми сливками', emoji:'🍫', hit:false },
+      { id:genId(), name:'Раф кофе', cat:'Кофе', price:320, stock:45, desc:'Кофе со сливками и ванильным сахаром', emoji:'🧁', hit:true },
+      { id:genId(), name:'Айс-кофе', cat:'Кофе', price:270, stock:60, desc:'Холодный кофе со льдом', emoji:'🧊', hit:false },
+      { id:genId(), name:'Зелёный чай', cat:'Чай', price:180, stock:90, desc:'Отборный японский сенча', emoji:'🍵', hit:false },
+      { id:genId(), name:'Иван-чай', cat:'Чай', price:200, stock:55, desc:'Ферментированный с ягодами', emoji:'🌿', hit:false },
+      { id:genId(), name:'Матча-латте', cat:'Чай', price:300, stock:35, desc:'Японский чай матча с молоком', emoji:'🍃', hit:true },
+      { id:genId(), name:'Чизкейк', cat:'Десерты', price:350, stock:18, desc:'Нью-Йоркский со сливочным кремом', emoji:'🍰', hit:true },
+      { id:genId(), name:'Тирамису', cat:'Десерты', price:380, stock:12, desc:'Классический итальянский десерт', emoji:'🍮', hit:false },
+      { id:genId(), name:'Круассан', cat:'Десерты', price:200, stock:30, desc:'Маслянистый, воздушный, хрустящий', emoji:'🥐', hit:false },
+      { id:genId(), name:'Маффин', cat:'Десерты', price:220, stock:25, desc:'Шоколадный с жидкой начинкой', emoji:'🧁', hit:false },
+      { id:genId(), name:'Авокадо-тост', cat:'Завтраки', price:420, stock:8, desc:'С яйцом пашот и микрозеленью', emoji:'🥑', hit:true },
+      { id:genId(), name:'Сырники', cat:'Завтраки', price:350, stock:15, desc:'Со сметаной и ягодным соусом', emoji:'🥞', hit:false },
+      { id:genId(), name:'Боул с асаи', cat:'Завтраки', price:450, stock:20, desc:'Гранола, фрукты и мёд', emoji:'🫐', hit:false },
+      { id:genId(), name:'Яйца Бенедикт', cat:'Завтраки', price:480, stock:10, desc:'С голландским соусом на бриоши', emoji:'🍳', hit:false },
+      { id:genId(), name:'Молоко 3.2%', cat:'Ингредиенты', price:80, stock:200, desc:'Литровая упаковка', emoji:'🥛', hit:false },
+      { id:genId(), name:'Овсяное молоко', cat:'Ингредиенты', price:180, stock:50, desc:'Растительное', emoji:'🌾', hit:false },
+      { id:genId(), name:'Кофе зёрна 1кг', cat:'Ингредиенты', price:1200, stock:5, desc:'Арабика Эфиопия', emoji:'☕', hit:false },
+      { id:genId(), name:'Стакан 300мл', cat:'Упаковка', price:8, stock:500, desc:'Бумажный', emoji:'🥤', hit:false },
+    ];
+    setData('products', products);
   }
-  setData('sales', sales);
 
-  var deliveries = [
-    { id:genId(), date:today(), client:'Анна Смирнова', phone:'+7 (999) 111-22-33', address:'ул. Ленина, 15, кв.8', items:'Капучино x2, Чизкейк x1', sum:850, status:'shipping', employee:'EMP-003', comment:'' },
-    { id:genId(), date:today(), client:'Дмитрий Козлов', phone:'+7 (999) 444-55-66', address:'пр. Мира, 42, оф.12', items:'Латте x3, Круассан x3', sum:1440, status:'assembling', employee:'EMP-001', comment:'Позвонить заранее' },
-    { id:genId(), date:today(), client:'Елена Попова', phone:'+7 (999) 777-88-99', address:'ул. Гагарина, 7', items:'Раф x1, Тирамису x1', sum:700, status:'new', employee:'', comment:'' },
-  ];
-  setData('deliveries', deliveries);
+  // Продажи — только если пустые
+  if (!getData('sales', null) || getData('sales', []).length === 0) {
+    var prods = getData('products', []);
+    var sales = [];
+    var daysAgo = [0,0,0,1,1,2,2,3,4,5,6,7,8,9,10];
+    for (var i = 0; i < 15; i++) {
+      var p = prods[Math.floor(Math.random() * Math.min(10, prods.length))];
+      if (!p) continue;
+      var qty = Math.floor(Math.random() * 4) + 1;
+      var d = new Date(); d.setDate(d.getDate() - daysAgo[i]);
+      sales.push({
+        id: genId(),
+        product: p.name,
+        qty: qty,
+        price: p.price,
+        total: p.price * qty,
+        payment: ['Наличные','Карта','Apple/Google Pay','СБП'][Math.floor(Math.random()*4)],
+        date: d.toISOString().split('T')[0]
+      });
+    }
+    setData('sales', sales);
+  }
 
-  setData('incoming', [
-    { id:genId(), date:today(), product:'Кофе зёрна 1кг', qty:10, supplier:'КофеТрейд', note:'Арабика Эфиопия, новая партия' },
-    { id:genId(), date:today(), product:'Молоко 3.2%', qty:50, supplier:'МолокоОпт', note:'' },
-  ]);
+  // Доставки — только если пустые
+  if (!getData('deliveries', null) || getData('deliveries', []).length === 0) {
+    var deliveries = [
+      { id:genId(), date:today(), client:'Анна Смирнова', phone:'+7 (999) 111-22-33', address:'ул. Ленина, 15, кв.8', items:'Капучино x2, Чизкейк x1', sum:850, status:'shipping', employee:'EMP-003', comment:'' },
+      { id:genId(), date:today(), client:'Дмитрий Козлов', phone:'+7 (999) 444-55-66', address:'пр. Мира, 42, оф.12', items:'Латте x3, Круассан x3', sum:1440, status:'assembling', employee:'EMP-001', comment:'Позвонить заранее' },
+      { id:genId(), date:today(), client:'Елена Попова', phone:'+7 (999) 777-88-99', address:'ул. Гагарина, 7', items:'Раф x1, Тирамису x1', sum:700, status:'new', employee:'', comment:'' },
+    ];
+    setData('deliveries', deliveries);
+  }
 
-  setData('initialized', true);
+  // Поступления — только если пустые
+  if (!getData('incoming', null) || getData('incoming', []).length === 0) {
+    setData('incoming', [
+      { id:genId(), date:today(), product:'Кофе зёрна 1кг', qty:10, supplier:'КофеТрейд', note:'Арабика Эфиопия, новая партия' },
+      { id:genId(), date:today(), product:'Молоко 3.2%', qty:50, supplier:'МолокоОпт', note:'' },
+    ]);
+  }
 }
 
 initDemoData();
